@@ -3,7 +3,7 @@ title: " "
 output:
   pdf_document:
     number_sections: TRUE
-geometry: "left = 2.5cm, right = 2cm, top = 2cm, bottom = 2cm"
+geometry: "left = 3.5cm, right = 3cm, top = 2cm, bottom = 2cm"
 fontsize: 11pt
 header-includes:
   - \usepackage{float}
