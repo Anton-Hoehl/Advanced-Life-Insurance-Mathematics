@@ -8,6 +8,8 @@ header-includes:
 
 # Introduction
 
+## This is a subchapter
+
 - introduce the reader to the subject area and clarify the knowledge gap that the dissertation research will fill.
 - set the context for the dissertation by reviewing the relevant literature.
 - include relevant references to general (theoretical papers and reviews) and specific (specific to the particular question addressed) literature, to justify the research that has been undertaken and define the questions being addressed.
