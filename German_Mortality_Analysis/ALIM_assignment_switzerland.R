@@ -1,5 +1,4 @@
-# ALIM assignment - Switzerland
-
+##----ALIM assignment - Switzerland-----------------------------------------------------------------
 install.packages("tidyverse")
 install.packages("demography")
 install.packages("forecast")
@@ -8,29 +7,55 @@ library(demography)
 library(forecast)
 library(dplyr)
 
-#Transforming 110+ into 110
+##----input data from HMD.org---------------------------------------------------------------------------
 
-Switzerland_females_1876_2020["Age"][Switzerland_females_1876_2020["Age"] =="110+"] <- 110
-Switzerland_females_1876_2020 <- transform(Switzerland_females_1876_2020,Age = as.numeric(Age))
+sui_fem_mort_1876_2020 <- 
+        read_table(file = "./6_2_data/CHE/STATS/fltper_1x1.txt",
+              col_names = T,
+                  skip = 1)
 
-## Subset from year 1980 until most recent year (2019) (40 years in total)
-## Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
+sui_fem_expo_1876_2020 <-
+        read_table(file = "./6_2_data/CHE/STATS/Exposures_1x1.txt",
+              col_names = T,
+                   skip = 1) %>%
+            select(Year,Age,Female)
 
-Switzerland_females_1980_2019 = filter(Switzerland_females_1876_2020, Year >= 1980 & Year <= 2019)
+sui_fem_deaths_1876_2020 <- 
+          read_table(file = "./6_2_data/CHE/STATS/Deaths_1x1.txt",
+                col_names = T,
+                     skip = 1) %>%
+              select(Year,Age,Female)
 
-Switzerland_females_1980_2019 = filter(Switzerland_females_1980_2019, Age <= 89)
+##----data prep----------------------------------------------------------------------
 
-years_swiss = 1980:max(Switzerland_females_1980_2019$Year) # May be needed later
-ages = 0:89 #May be needed later
-abc = expand.grid(Year = years_swiss, Age = ages) # May be needed later
+sui_fem_1980_2019 <- 
+sui_fem_mort_1876_2020 %>%
+       mutate(expo = sui_fem_expo_1876_2020$Female,
+              
+               Age = replace(Age, Age == "110+", 110),     #Transforming 110+ into 110
+               Age = as.numeric(Age)) %>%
+       mutate(dexpo = expo*mx) %>%
+       filter(Year >= 1980 & Year <= 2019)                #Subset from year 1980 until most recent year (2019) (40 years in total)
 
-## Plot of the log of the central death rate - we observe an improvement in the central death rates throughout the years
+sui_fem_1980_2019_modelage <-
+sui_fem_1980_2019 %>%
+     filter(Age <= 89)                           #Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
 
-p_swiss = ggplot(Switzerland_females_1980_2019, aes(x = Age, y = log(mx), group = Year)) + 
-  geom_line(aes(colour = Year), size = 1, linetype = 1) +
-  scale_colour_gradientn(colours = rainbow(10)) +
-  scale_x_continuous(breaks = seq(ages[1], tail(ages, 1) + 1, 10)) +
-  theme_bw() + ylab(expression("log" ~ m[x])) + xlab("Age (x)") +ggtitle("Switzerland - mx evolution")
+sui_fem_1980_2019_oldage <-
+sui_fem_1980_2019 %>%
+      filter(Age > 89)                            #old ages will be closed with Kannisto
+
+##----Plot of the log of the central death rate - we observe an improvement in the central death rates throughout the years-----------------------------
+
+p_swiss <- 
+          ggplot(sui_fem_1980_2019, aes(x = Age, y = log(mx), group = Year)) + 
+          geom_line(aes(colour = Year), size = 1, linetype = 1) +
+          scale_colour_gradientn(colours = rainbow(10)) +
+          scale_x_continuous(breaks = seq(ages[1], tail(ages, 1) + 1, 10)) +
+          theme_bw() + 
+          ylab(expression("log" ~ m[x])) + 
+          xlab("Age (x)") +
+          ggtitle("Switzerland - mx evolution")
 p_swiss
 
 # Calibration of the Poisson Likelihood (optimization of the Poisson Likelihood 
@@ -39,7 +64,7 @@ p_swiss
 #-------------------------------//---------------------------
 
 # 1st method : using fit701 function
-fit701=function(xv,yv,etx,dtx,wa){
+fit701 <- function(xv,yv,etx,dtx,wa){
   # Model M1
   # Lee-Carter model
   # log m(t,x) = beta1(x) + beta2(x).kappa2(t) + Poisson error
@@ -49,12 +74,12 @@ fit701=function(xv,yv,etx,dtx,wa){
   #   etx = m x n matrix of exposures
   #   dtx = m x n matrix of deaths
   #   wa = m x n matrix of weights (0 or 1)
-  xv<-as.vector(unlist(xv))
-  yv<-as.vector(unlist(yv))
-  etx<-as.matrix(etx)
-  dtx<-as.matrix(dtx)
-  wa<-as.matrix(wa)
-  mtx=dtx/etx	  # matrix of death rates
+  xv <- as.vector(unlist(xv))
+  yv <- as.vector(unlist(yv))
+  etx <- as.matrix(etx)
+  dtx <- as.matrix(dtx)
+  wa <- as.matrix(wa)
+  mtx <- dtx/etx	  # matrix of death rates
   
   qtx=1-exp(-mtx) # matrix of mortality rates
   
@@ -252,15 +277,16 @@ llmaxM2D=function(b1,b2,b3,k2,g3,dv,ev,wv=1){
 #   dtx = m x n matrix of deaths
 #   wa = m x n matrix of weights (0 or 1)
 
-ages_swiss = as.matrix(ages, nrow = 1)
-years_swiss = as.matrix(years_swiss, nrow = 1)
-etx_swiss = matrix(Switzerland_females_1980_2019$ex, nrow = 40, byrow = TRUE)
-dtx_swiss = matrix(Switzerland_females_1980_2019$dx, nrow = 40, byrow = TRUE)
+ages <- 0:89
+years <- 1980:2019
+etx <- matrix(sui_fem_1980_2019_modelage$expo, nrow = 40, byrow = TRUE)
+mtx <- matrix(sui_fem_1980_2019_modelage$mx, nrow = 40, byrow = TRUE)
+dtx <- matrix(sui_fem_1980_2019_modelage$dexpo, nrow = 40, byrow = TRUE)
+wa <-  matrix(1, nrow(etx), ncol(etx))
 
 # Estimates for Bx(1), Bx(2), Kt(2)
 
-LCfit701 <-  fit701(ages_swiss,years_swiss,etx_swiss,dtx_swiss,matrix(1, length(years_swiss), length(ages_swiss)))
-
+LCfit701 <-  fit701(ages,years,etx,dtx,wa)
 
 
 

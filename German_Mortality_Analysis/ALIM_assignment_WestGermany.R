@@ -12,6 +12,12 @@ library(dplyr)
 
 ## West Germany
 #Transforming 110+ into 110
+
+WestGermany_1956_2017 <-
+  read_table(file = "./6_2_data/bltper_1x1/DEUTW.bltper_1x1.txt",
+             col_names = T,
+             skip = 1)
+
 WestGermany_1956_2017["Age"][WestGermany_1956_2017["Age"] =="110+"] <- 110
 WestGermany_1956_2017 <- transform(WestGermany_1956_2017,Age = as.numeric(Age))
 
