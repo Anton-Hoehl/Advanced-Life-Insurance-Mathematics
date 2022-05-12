@@ -28,8 +28,13 @@ Switzerland_males_1970_2019_young <-
   filter(Age <= 89)                          #Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
 
 Switzerland_males_1970_2019_old_age <-
-  Switzerland_males_1970_2019 %>%
-  filter(Age > 89)                            #old ages will be closed with Kannisto
+  Switzerland_males_1876_2020 %>%
+  mutate(expo = Switzerland_exposures_1876_2020$Male,
+         Age = replace(Age, Age == "110+", 110),     #Transforming 110+ into 110
+         Age = as.numeric(Age)) %>%
+  mutate(dexpo = expo*mx) %>%
+  filter(Year >= 1970 & Year <= 2019) %>%               #Subset from year 1980 until most recent year (2019) (40 years in total)
+  filter(Age > 89)                             #old ages will be closed with Kannisto
 
 # Transform the 3 observations with "dxt = 0" into "dxt = 1"
 Switzerland_males_1970_2019_young["dx"][Switzerland_males_1970_2019_young["dx"] == 0] <- 1
@@ -679,7 +684,9 @@ LCfit701$kappa2[length(years_swiss)] ## value of the kt in 2017; start of the pa
 
 ##----Kannistö----------------------------------------------------------------------
 
-#kan <- glm(data = Switzerland_males_1970_2019, )
+Switzerland_males_1970_2019_old_age$
+
+kan <- glm(data = Switzerland_males_1970_2019_old_age, family = "binomial")
 
 
 
