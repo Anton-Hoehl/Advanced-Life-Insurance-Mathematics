@@ -1,7 +1,6 @@
 # ALIM assignment - Switzerland_males
 
 library(tidyverse)
-library(demography)
 library(forecast)
 library(dplyr)
 
@@ -19,29 +18,29 @@ Switzerland_exposures_1876_2020 <-
 
 ##----data prep----------------------------------------------------------------------
 
-Switzerland_males_1970_2019 <- 
+Switzerland_males_1970_2019_young <- 
   Switzerland_males_1876_2020 %>%
   mutate(expo = Switzerland_exposures_1876_2020$Male,
          Age = replace(Age, Age == "110+", 110),     #Transforming 110+ into 110
          Age = as.numeric(Age)) %>%
   mutate(dexpo = expo*mx) %>%
   filter(Year >= 1970 & Year <= 2019) %>%               #Subset from year 1980 until most recent year (2019) (40 years in total)
-  filter(Age <= 89)                           #Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
+  filter(Age <= 89)                          #Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
 
 Switzerland_males_1970_2019_old_age <-
   Switzerland_males_1970_2019 %>%
   filter(Age > 89)                            #old ages will be closed with Kannisto
 
 # Transform the 3 observations with "dxt = 0" into "dxt = 1"
-Switzerland_males_1970_2019["dx"][Switzerland_males_1970_2019["dx"] == 0] <- 1
+Switzerland_males_1970_2019_young["dx"][Switzerland_males_1970_2019_young["dx"] == 0] <- 1
 
-years_swiss = 1970:max(Switzerland_males_1970_2019$Year) # May be needed later
+years_swiss = 1970:max(Switzerland_males_1970_2019_young$Year) # May be needed later
 ages = 0:89 #May be needed later
 abc = expand.grid(Year = years_swiss, Age = ages) # May be needed later
 
 ## Plot of the log of the central death rate - we observe an improvement in the central death rates throughout the years
 
-p_swiss = ggplot(Switzerland_males_1970_2019, aes(x = Age, y = log(mx), group = Year)) + 
+p_swiss = ggplot(Switzerland_males_1970_2019_young, aes(x = Age, y = log(mx), group = Year)) + 
   geom_line(aes(colour = Year), size = 1, linetype = 1) +
   scale_colour_gradientn(colours = rainbow(10)) +
   scale_x_continuous(breaks = seq(ages[1], tail(ages, 1) + 1, 10)) +
@@ -268,8 +267,8 @@ fit701=function(xv,yv,etx,dtx,wa){
 
 ages_swiss = as.matrix(ages, nrow = 1)
 years_swiss = as.matrix(years_swiss, nrow = 1)
-etx_swiss = matrix(Switzerland_males_1970_2019$ex, nrow = 50, byrow = TRUE)
-dtx_swiss = matrix(Switzerland_males_1970_2019$dx, nrow = 50, byrow = TRUE)
+etx_swiss = matrix(Switzerland_males_1970_2019_young$ex, nrow = 50, byrow = TRUE)
+dtx_swiss = matrix(Switzerland_males_1970_2019_young$dx, nrow = 50, byrow = TRUE)
 
 # Estimates for Bx(1), Bx(2), Kt(2)
 
@@ -676,6 +675,13 @@ sim_LC$dda[ , 1:50, 2]## second generated path ; Starts with the same kt of 2017
 sim_LC$dda[,,1] ## STORES THE BEST ESTIMATE PATH. why? its basically the 1st path
 
 LCfit701$kappa2[length(years_swiss)] ## value of the kt in 2017; start of the path
+
+
+##----Kannistö----------------------------------------------------------------------
+
+#kan <- glm(data = Switzerland_males_1970_2019, )
+
+
 
 
 
