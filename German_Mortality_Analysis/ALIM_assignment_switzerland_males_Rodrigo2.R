@@ -898,6 +898,8 @@ ggplot(data = full,
 
 ##----EPV of 1 unit whole life annuity due------------------------------------------------------------
 
+i <- 0.01 #interest rate 1% for discounting
+disc <- 1 / (1 + i)
 
 
 
