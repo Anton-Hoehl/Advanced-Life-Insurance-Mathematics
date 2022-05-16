@@ -896,7 +896,8 @@ ggplot(data = full,
        aes(x = Age, y = log(mx))) +
   geom_line()
 
-##----EPV of 1 unit whole life annuity------------------------------------------------------------
+##----EPV of 1 unit whole life annuity due------------------------------------------------------------
+
 
 
 
