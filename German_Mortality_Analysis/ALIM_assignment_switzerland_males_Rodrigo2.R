@@ -877,7 +877,7 @@ kan <- lm(data = Switzerland_males_1970_2019_old_age_calib,
 phi_1 <- unname(kan$coefficients[1])
 phi_2 <- unname(kan$coefficients[2])
 
-mx_old <- (exp(phi_1) * exp(phi_2*c(90:110))) / (1 + exp(phi_1) * exp(phi_2*c(90:110)))
+mx_old <- (exp(phi_1) * exp(phi_2*c(80:110))) / (1 + exp(phi_1) * exp(phi_2*c(80:110)))
 
 mx_old
 
@@ -886,7 +886,7 @@ mx_old
 og <- Switzerland_males_1970_2019_young %>% 
   filter(Year == 2000) %>% select(c(Age, mx))
 
-kann <- data.frame(c(90:110), mx_old) 
+kann <- data.frame(c(80:110), mx_old) 
 
 colnames(kann) <- c("Age", "mx")
 
