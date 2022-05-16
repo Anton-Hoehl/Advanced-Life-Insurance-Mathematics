@@ -5,46 +5,67 @@ library(demography)
 library(forecast)
 library(dplyr)
 
-#Transforming 110+ into 110
+##----input data from HMD.org---------------------------------------------------------------------------
 
-Switzerland_males_1876_2020["Age"][Switzerland_males_1876_2020["Age"] =="110+"] <- 110
-Switzerland_males_1876_2020 <- transform(Switzerland_males_1876_2020,Age = as.numeric(Age))
+Switzerland_males_1876_2020 <-
+  read_table(file = "./6_2_data/mltper_1x1.txt",
+             col_names = T,
+             skip = 1)
 
-## Subset from year 1970 until most recent year (2019) (50 years in total)
-## Subset from age 0 until 79 because the remaining ages will be closed with Kannisto
+Switzerland_exposures_1876_2020 <-
+  read_table(file = "./6_2_data/Exposures_1x1.txt",
+             col_names = T,
+             skip = 1)
 
-Switzerland_males_1970_2019 = filter(Switzerland_males_1876_2020, Year >= 1970 & Year <= 2019)
+##----data prep----------------------------------------------------------------------
 
-Switzerland_males_1970_2019 = filter(Switzerland_males_1970_2019, Age <= 79)
+Switzerland_males_1970_2019_young <-
+  Switzerland_males_1876_2020 %>%
+  mutate(
+    expo = Switzerland_exposures_1876_2020$Male,
+    Age = replace(Age, Age == "110+", 110),
+    #Transforming 110+ into 110
+    Age = as.numeric(Age)
+  ) %>%
+  mutate(dexpo = expo * mx) %>%
+  filter(Year >= 1970 &
+           Year <= 2019) %>%               #Subset from year 1980 until most recent year (2019) (40 years in total)
+  filter(Age <= 79)                          #Subset from age 0 until 89 because the remaining ages will be closed with Kannisto
+
+Switzerland_males_1970_2019_old_age <-
+  Switzerland_males_1876_2020 %>%
+  mutate(
+    expo = Switzerland_exposures_1876_2020$Male,
+    Age = replace(Age, Age == "110+", 110),
+    #Transforming 110+ into 110
+    Age = as.numeric(Age)
+  ) %>%
+  mutate(dexpo = expo * mx) %>%
+  filter(Year >= 1970 &
+           Year <= 2019) %>%               #Subset from year 1980 until most recent year (2019) (40 years in total)
+  filter(Age > 79)                             #old ages will be closed with Kannisto
+
 
 # Transform the 3 observations with "dxt = 0" into "dxt = 1"
-Switzerland_males_1970_2019["dx"][Switzerland_males_1970_2019["dx"] == 0] <- 1
+Switzerland_males_1970_2019_young["dexpo"][Switzerland_males_1970_2019_young["dexpo"] == 0] <- 1
 
-years_swiss = 1970:max(Switzerland_males_1970_2019$Year) # May be needed later
+years_swiss = 1970:max(Switzerland_males_1970_2019_young$Year) # May be needed later
 ages = 0:79 #May be needed later
 abc = expand.grid(Year = years_swiss, Age = ages) # May be needed later
 
-## Exposure dataset (Preprocessing)
-
-exposure_swiss = filter(exposures_switzerland_males, Year >= 1970 & Year <= 2019)
-
-exposure_swiss["Age"][exposure_swiss["Age"] =="110+"] <- 110
-exposure_swiss <- transform(exposure_swiss,Age = as.numeric(Age))
-exposure_swiss <- filter(exposure_swiss, Age <= 79)
-
-
-
 ## Plot of the log of the central death rate - we observe an improvement in the central death rates throughout the years
 
-p_swiss = ggplot(Switzerland_males_1970_2019, aes(x = Age, y = log(mx), group = Year)) + 
+p_swiss = ggplot(Switzerland_males_1970_2019_young,
+                 aes(x = Age, y = log(mx), group = Year)) +
   geom_line(aes(colour = Year), size = 1, linetype = 1) +
   scale_colour_gradientn(colours = rainbow(10)) +
   scale_x_continuous(breaks = seq(ages[1], tail(ages, 1) + 1, 10)) +
-  theme_bw() + ylab(expression("log" ~ m[x])) + xlab("Age (x)") +ggtitle("Switzerland - mx evolution")
+  theme_bw() + ylab(expression("log" ~ m[x])) + xlab("Age (x)") + ggtitle("Switzerland - mx evolution")
 p_swiss
 
-# Calibration of the Poisson Likelihood (optimization of the Poisson Likelihood 
+# Calibration of the Poisson Likelihood (optimization of the Poisson Likelihood
 #with univariate Newton-Raphson steps)
+
 
 
 # ---------------------------------//-------------------------------
@@ -263,8 +284,8 @@ fit701=function(xv,yv,etx,dtx,wa){
 
 ages_swiss = as.matrix(ages, nrow = 1)
 years_swiss = as.matrix(years_swiss, nrow = 1)
-ext_swiss = matrix(exposure_swiss$Male, nrow = 50, byrow = TRUE)
-dxt_swiss = matrix(Switzerland_males_1970_2019$dx, nrow = 50, byrow = TRUE)
+ext_swiss = matrix(Switzerland_males_1970_2019_young$expo, nrow = 50, byrow = TRUE)
+dxt_swiss = matrix(Switzerland_males_1970_2019_young$dexpo, nrow = 50, byrow = TRUE)
 
 # Estimates for Bx(1), Bx(2), Kt(2)
 
@@ -843,8 +864,39 @@ for (j in 1:nages) {
   fan(sim_LC$y, sim_LC$qaa[ages_sel[j] - minage + 1, ,], color = color[j])
 }
 
+##----Kannistö----------------------------------------------------------------------
+
+Switzerland_males_1970_2019_old_age_calib <- Switzerland_males_1970_2019_old_age %>%
+  filter(Age >= 80 & Age <= 90)
 
 
+kan <- lm(data = Switzerland_males_1970_2019_old_age_calib,
+          formula = log(mx / (1 - mx)) ~ Age)
+
+
+phi_1 <- unname(kan$coefficients[1])
+phi_2 <- unname(kan$coefficients[2])
+
+mx_old <- (exp(phi_1) * exp(phi_2*c(90:110))) / (1 + exp(phi_1) * exp(phi_2*c(90:110)))
+
+mx_old
+
+
+
+og <- Switzerland_males_1970_2019_young %>% 
+  filter(Year == 2000) %>% select(c(Age, mx))
+
+kann <- data.frame(c(90:110), mx_old) 
+
+colnames(kann) <- c("Age", "mx")
+
+full <- rbind(og, kann)
+
+ggplot(data = full,
+       aes(x = Age, y = log(mx))) +
+  geom_line()
+
+##----EPV of 1 unit whole life annuity------------------------------------------------------------
 
 
 
