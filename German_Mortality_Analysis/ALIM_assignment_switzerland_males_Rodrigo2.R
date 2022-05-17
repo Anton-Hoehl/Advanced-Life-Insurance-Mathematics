@@ -888,6 +888,8 @@ og <- Switzerland_males_1970_2019_young %>%
 
 kann <- data.frame(c(80:110), mx_old) 
 
+kann <- kann %>% mutate(qx = 1 - exp(-mx)) %>% mutate(px = 1 - qx)
+
 colnames(kann) <- c("Age", "mx")
 
 full <- rbind(og, kann)
@@ -896,16 +898,59 @@ ggplot(data = full,
        aes(x = Age, y = log(mx))) +
   geom_line()
 
-##----EPV of 1 unit whole life annuity due------------------------------------------------------------
 
-i <- 0.01 #interest rate 1% for discounting
-disc <- 1 / (1 + i)
+##----EPV of a whole-life annuity due------------------------------------------------------------
+
+BEpx_kann <- matrix(kann$px, nrow = nrow(kann), ncol = 50)
+BEpx_sim_LC <- 1 - sim_LC$qaa[,,1]
+BEpx_full <- rbind(BEpx_sim_LC, BEpx_kann)
+
+# axt computes the EPV of a life annuity due for a x year old based on a period life table from year t
+axt <- function(age,int,benefits,year,data) {
+  lastrow <- dim(data)[1]
+  v <- 1 / (1 + int)                               #discount factor
+  px <- data[(age + 1):lastrow,year - 2019]   #Best Estimate of 1 year survival probabilities from age x till max age in year t
+  kpx <- c(1, cumprod(px))                             
+  ax <- sum(benefits*v^(0:(length(kpx)-1))*kpx)          #EPV of a whole-life annuity due for x year old in year t
+  return(ax)
+}
+
+# axt.coh computes the EPV of a life annuity due for a x year old based on a cohort life table 
+axt.coh <- function(age,int,benefits,year,data) {
+  lastrow <- dim(data)[1]
+  lastcol <- dim(data)[2]
+  v <- 1 / (1 + int)     #discount factor
+  px <- diag(BEpx_full[(age + 1):dim(data)[1],(year - 2019):dim(data)[2]])    #Best Estimate of 1 year cohort survival probs from age x till the maximum possible age in the table
+  kpx <- c(1, cumprod(px))                             
+  ax <- sum(benefits*v^(0:(length(kpx)-1))*kpx)     #EPV of a whole-life annuity due for x year old
+  return(ax)
+}
+
+# matrix of EPV's of life annuities due for all combination of years (2020 - 2069) and ages (0 - 110)
+
+t <- 2020:2069
+x <- 0:110
+i <- 0.01
+b <- 1
+
+axt <- Vectorize(FUN = axt, vectorize.args = c("age","year"))
+axt.coh <- Vectorize(FUN = axt.coh, vectorize.args = c("age","year"))
+
+xt <- expand.grid(x,t)
+names(xt) <- c("x","t")
+
+axt_df <- data.frame(xt)
+axt_df$axt <- axt(xt$x,i,b,xt$t,BEpx_full)
+axt_df$axt_cohort <- axt.coh(xt$x,i,b,xt$t,BEpx_full)
+axt_df <- as_tibble(axt_df)
+
+axt_df %>%
+  filter(x == 10) %>%
+  ggplot(aes(x = t, y = axt_cohort)) +
+  geom_line()
 
 
 
 
-
-
-
-
+  
   
